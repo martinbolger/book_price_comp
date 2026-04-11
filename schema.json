@@ -1,0 +1,8 @@
+{
+    "isbn": str,
+    "title": str,
+    "price": float,
+    "currency": str,
+    "condition": str,
+    "source": str
+}
