@@ -22,11 +22,14 @@ class ManifestManager:
             days=self.expiration_days
         )
 
-    def url_covered(self, url: str) -> bool:
+    def url_covered(self, url: str, entry: ManifestEntry = None) -> bool:
         """Checks if the URL is already in the manifest and is past the expiration date."""
-        entry = (
-            self.session.query(ManifestEntry).filter(ManifestEntry.url == url).first()
-        )
+        if not entry:
+            entry = (
+                self.session.query(ManifestEntry)
+                .filter(ManifestEntry.url == url)
+                .first()
+            )
         if entry and entry.last_read_date > self.expiration_date:
             return True
         return False
@@ -39,12 +42,17 @@ class ManifestManager:
             self.session.query(ManifestEntry).filter(ManifestEntry.url == url).first()
         )
 
+        # If covered and not expired, do nothing
+        if self.url_covered(url, entry):
+            logger.info(f"URL already covered and not expired: {url}")
+            return
+
         # Entry exists but is expired, update it
-        if entry and not self.url_covered(url):
+        if entry:
             logger.info(f"Updating existing entry for URL: {url}")
             entry.last_read_date = last_read_date
         # Entry does not exist, add new entry
-        elif not entry:
+        else:
             logger.info(f"Adding new entry for URL: {url}")
             self.session.add(ManifestEntry(url=url, last_read_date=last_read_date))
 
