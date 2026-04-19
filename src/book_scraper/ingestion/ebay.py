@@ -4,7 +4,7 @@ import pandas as pd
 import re
 
 
-def parse_data(html: str):
+def parse_html(html: str):
     soup = BeautifulSoup(html, "lxml")
 
     # Step 1: Isolate the results section
@@ -13,10 +13,10 @@ def parse_data(html: str):
     # Find the img tag with the specific class
     listings = results_container.select("li.s-card")
 
-    rows = []
+    books = []
     for listing in listings:
+        listingid = listing.get("data-listingid")
         img_tag = listing.select_one(".s-card__image")
-
         title_tag = listing.select_one(".s-card__title .primary")
         price_tag = listing.select_one(".s-card__price")
         attribute_rows = listing.select(".s-card__attribute-row .secondary")
@@ -36,24 +36,30 @@ def parse_data(html: str):
             if "$" in text or "delivery" in text.lower():
                 shipping_cost = text
                 break
-        rows.append(
+
+        # Get price and shipping as floats for total price calculation
+        price_usd_float = extract_price(price_usd)
+        shipping_cost_float = extract_price(shipping_cost)
+        total_price = (
+            price_usd_float + shipping_cost_float
+            if price_usd_float is not None and shipping_cost_float is not None
+            else None
+        )
+        # Get sold date as datetime
+        sold_date_dt = pd.to_datetime(extract_sold_date(sold_date))
+        books.append(
             {
+                "listingid": listingid,
                 "title": title,
-                "sold_date": extract_sold_date(sold_date),
+                "magazine": "magazine" in title.lower(),
+                "sold_date": sold_date_dt,
                 "image_url": image_url,
-                "price_usd": extract_price(price_usd),
-                "shipping_cost": extract_price(shipping_cost),
+                "price_usd": price_usd_float,
+                "shipping_cost": shipping_cost_float,
+                "total_price": total_price,
             }
         )
-    # Create dataframe
-    book_data = pd.DataFrame(
-        rows, columns=["title", "sold_date", "image_url", "price_usd", "shipping_cost"]
-    )
-    # Calculate total price
-    book_data["total_price_usd"] = book_data["price_usd"] + book_data["shipping_cost"]
-    # Convert sold_date to datetime
-    book_data["sold_date"] = pd.to_datetime(book_data["sold_date"])
-    book_data.to_csv("ebay_books.csv", index=False)
+    return books
 
 
 def extract_sold_date(sold_date_str: str) -> str:
@@ -77,7 +83,8 @@ def extract_price(price_str: str) -> float:
 
 
 if __name__ == "__main__":
-    data_dir = Path(__file__).parent.parent.parent / "data"
-    with open(data_dir / "d40fcb34f8fcc.html", "r", encoding="utf-8") as f:
+    data_dir = Path(__file__).parent / "html_output"
+    with open(data_dir / "564a95fe9c134.html", "r", encoding="utf-8") as f:
         html = f.read()
-    parse_data(html)
+    books = parse_html(html)
+    print(books)
