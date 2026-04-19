@@ -8,6 +8,18 @@ from book_scraper.run_injestion_cycle import Scraper
 
 
 def main(urls: list[str], output_path: Path, expiration_days: int = 7):
+    """
+    Runs the scraping and ingestion cycle for a list of URLs, managing the manifest to avoid re-scraping recently scraped URLs.
+
+    Parameters
+    ----------
+    urls : list[str]
+        List of URLs to scrape.
+    output_path : Path
+        Path to save the scraped HTML output.
+    expiration_days : int, optional
+        Number of days after which a URL is considered expired and can be scraped again.
+    """
 
     scraper = Scraper()
 
@@ -43,6 +55,8 @@ if __name__ == "__main__":
         "ninja_japan_shop",
         "yoshihiroshop",
         "nkkt10-26",
+        "japan-nihonbashi",
+        "romando",
     ]
     urls = []
     for seller_name in seller_names:
