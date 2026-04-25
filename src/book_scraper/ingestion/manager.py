@@ -118,6 +118,16 @@ class BookManager:
                 entry.resolution_attempted = True
             self.session.commit()
 
+    def add_image_file(self, image_url: str, image_file: str) -> None:
+        """Adds a local image file path to a book entry based on the image URL."""
+        entries = (
+            self.session.query(BookEntry).filter(BookEntry.image_url == image_url).all()
+        )
+        if entries:
+            for entry in entries:
+                entry.image_file = image_file
+            self.session.commit()
+
     def add_book(
         self,
         listingid: str,

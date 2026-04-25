@@ -24,7 +24,7 @@ def main(urls: list[str], output_path: Path, expiration_days: int = 7):
     scraper = Scraper()
 
     # STEP 1: Ensure the database and tables exist
-    engine = get_engine("sqlite:///manifest.db")  # or your actual database URL
+    engine = get_engine()
     init_db(engine)
 
     session = sessionmaker(bind=engine)

@@ -17,6 +17,7 @@ class BookEntry(Base):
     __tablename__ = "books"
     listingid = Column(String, primary_key=True)
     image_url = Column(String)
+    image_file = Column(String)
     title = Column(String)
     magazine = Column(Boolean)
     sold_date = Column(DateTime)

@@ -36,7 +36,7 @@ def parse_html_files(html_path: Path, parser: callable):
 
 def update_db(books: list[dict]):
     # STEP 1: Ensure the database and tables exist
-    engine = get_engine("sqlite:///books.db")
+    engine = get_engine()
     init_db(engine)
 
     session = sessionmaker(bind=engine)
