@@ -11,3 +11,6 @@ wheels/
 
 # Project files
 data/
+*.db
+*.html
+*.webp
