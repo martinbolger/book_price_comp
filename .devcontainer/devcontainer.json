@@ -1,0 +1,22 @@
+{
+    "name": "Book Scraper Dev Environment",
+    "build": {
+        "dockerfile": "../Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",        
+                "ms-playwright.playwright" 
+            ]
+        }
+    },
+    "remoteUser": "root",
+    "containerUser": "root",
+    "runArgs": [
+        "--ipc=host",            
+        "--init"                 
+    ],
+    "postCreateCommand": "uv sync --extra dev" 
+}
