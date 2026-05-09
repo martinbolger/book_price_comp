@@ -1,0 +1,27 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: mbolger
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: book_scraper
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  scraper:
+    build: .
+    volumes:
+      - .:/app
+    working_dir: /app
+    environment:
+      - DATABASE_URL=postgresql://mbolger:password123@db:5432/book_scraper
+    depends_on:
+      - db
+    # Keeps the container running for you to attach via VS Code
+    tty: true 
+
+volumes:
+  postgres_data:
