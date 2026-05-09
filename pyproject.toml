@@ -1,16 +1,31 @@
 [project]
-name = "book-scraper"
+name = "book_scraper"
 version = "0.1.0"
-description = "Add your description here"
+description = "Scrapes book sales data to identify arbitrage opportunities"
 readme = "README.md"
 requires-python = ">=3.11"
+
 dependencies = [
     "beautifulsoup4>=4.14.3",
-    "easyocr>=1.7.2",
-    "google-genai>=1.69.0",
     "lxml>=6.0.2",
     "pandas>=3.0.2",
+    "pillow>=12.2.0",
     "playwright>=1.58.0",
+    "playwright-stealth>=2.0.3",
+    "psycopg2-binary",
     "requests>=2.33.0",
-    "short-url>=1.2.2",
+    "sqlalchemy>=2.0.49",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3", 
+    "alembic>=1.18.4"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/book_scraper"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
