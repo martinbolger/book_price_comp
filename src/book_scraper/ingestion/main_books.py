@@ -34,13 +34,22 @@ def parse_html_files(html_path: Path, parser: callable):
     return books
 
 
-def update_db(books: list[dict]):
+def update_db(books: list[dict]) -> int:
+    """
+    Updates the database with the given list of book data dictionaries.
+
+    Returns
+    -------
+    int
+        The number of new book entries added to the database.
+    """
     # STEP 1: Ensure the database and tables exist
     engine = get_engine()
     init_db(engine)
 
     session = sessionmaker(bind=engine)
     session_local = session()
+    added_count = 0
 
     # STEP 2: Open a communication session
     # Using 'with' ensures the session closes automatically when done
@@ -51,16 +60,11 @@ def update_db(books: list[dict]):
 
         # STEP 4: Add books to the database
         for book in books:
-            book_manager.add_book(
-                listingid=book["listingid"],
-                title=book["title"],
-                magazine=book["magazine"],
-                sold_date=book["sold_date"],
-                image_url=book["image_url"],
-                price_usd=book["price_usd"],
-                shipping_cost=book["shipping_cost"],
-                total_price=book["total_price"],
-            )
+            added = book_manager.add_book(**book)
+            book_manager.add_seller_id(book["listingid"], book["seller_id"])
+            if added:
+                added_count += 1
+    return added_count
 
 
 if __name__ == "__main__":

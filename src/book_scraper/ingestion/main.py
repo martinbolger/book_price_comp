@@ -5,9 +5,10 @@ from pathlib import Path
 from book_scraper.database import init_db, get_engine
 from book_scraper.ingestion.manager import ManifestManager
 from book_scraper.run_injestion_cycle import Scraper
+from book_scraper.seller_info import SellerInfo
 
 
-def main(urls: list[str], output_path: Path, expiration_days: int = 7):
+def main(seller_info: list[SellerInfo], output_path: Path, expiration_days: int = 7):
     """
     Runs the scraping and ingestion cycle for a list of URLs, managing the manifest to avoid re-scraping recently scraped URLs.
 
@@ -37,15 +38,20 @@ def main(urls: list[str], output_path: Path, expiration_days: int = 7):
         # STEP 3: Hand that session to your Manager
         manager = ManifestManager(session, expiration_days=expiration_days)
 
-        target_urls = [url for url in urls if not manager.url_covered(url)]
+        # Get objects for sellers that are not covered by the manifest
+        targets = [
+            seller
+            for seller in seller_info
+            if not manager.seller_id_covered(seller.seller_id)
+        ]
 
         # STEP 4: Run the scraper on the target URLs
-        if target_urls:
-            scraper.run(target_urls, output_path)
+        if targets:
+            scraper.run(targets, output_path)
 
         # STEP 5
-        for url in target_urls:
-            manager.add_to_manifest(url)
+        for target in targets:
+            manager.add_to_manifest(target.base_url)
 
 
 if __name__ == "__main__":
@@ -54,9 +60,9 @@ if __name__ == "__main__":
         "beyond_llc_jp01",
         "ninja_japan_shop",
         "yoshihiroshop",
-        "nkkt10-26",
+        # "nkkt10-26",
         "japan-nihonbashi",
-        "romando",
+        # "romando",
     ]
     urls = []
     for seller_name in seller_names:

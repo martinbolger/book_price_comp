@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "properties": {
+    "response": {
+      "type": "object",
+      "properties": {
+        "title_jp": {
+          "title": "Title Jp",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title_jp"
+      ],
+      "title": "Book"
+    }
+  },
+  "required": [
+    "response"
+  ],
+  "additionalProperties": false
+}

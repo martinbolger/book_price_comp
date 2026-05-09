@@ -1,3 +1,5 @@
+from xmlrpc.client import boolean
+
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
@@ -36,12 +38,12 @@ class ManifestManager:
             days=self.expiration_days
         )
 
-    def url_covered(self, url: str, entry: ManifestEntry = None) -> bool:
-        """Checks if the URL is already in the manifest and is past the expiration date."""
+    def seller_id_covered(self, seller_id: str, entry: ManifestEntry = None) -> bool:
+        """Checks if the seller ID is already in the manifest and is past the expiration date."""
         if not entry:
             entry = (
                 self.session.query(ManifestEntry)
-                .filter(ManifestEntry.url == url)
+                .filter(ManifestEntry.seller_id == seller_id)
                 .first()
             )
         if entry and entry.last_read_date > self.expiration_date:
@@ -87,6 +89,17 @@ class BookManager:
         """
         self.session = session
 
+    def add_seller_id(self, listingid: str, seller_id: str):
+        """Add seller id to the data for a book with a given listing ID if one does not already exist."""
+        entry = (
+            self.session.query(BookEntry)
+            .filter(BookEntry.listingid == listingid)
+            .first()
+        )
+        if entry and entry.seller_id is None:
+            entry.seller_id = seller_id
+            self.session.commit()
+
     def missing_jp_title(self) -> bool:
         """Returns a list of book entries that are missing a Japanese title and have not yet been attempted for resolution."""
         entries = (
@@ -128,18 +141,15 @@ class BookManager:
                 entry.image_file = image_file
             self.session.commit()
 
-    def add_book(
-        self,
-        listingid: str,
-        title: str,
-        magazine: bool,
-        sold_date: datetime,
-        image_url: str,
-        price_usd: float,
-        shipping_cost: float,
-        total_price: float,
-    ) -> None:
-        """Adds a book entry to the database."""
+    def add_book(self, listingid: str, title: str, **kwargs) -> boolean:
+        """
+        Adds a book entry to the database.
+
+        Returns
+        -------
+        boolean
+            True if the book was added, False if it already exists.
+        """
 
         entry = (
             self.session.query(BookEntry)
@@ -147,23 +157,18 @@ class BookManager:
             .first()
         )
         if entry:
-            logger.info(
-                f"Exact book already exists in database: {listingid}, {title}, {sold_date}"
-            )
-            return
+            logger.info(f"Exact book already exists in database: {listingid}, {title}")
+            return False
 
         # Implement logic to add book to the database
         self.session.add(
             BookEntry(
                 listingid=listingid,
                 title=title,
-                magazine=magazine,
-                sold_date=sold_date,
-                image_url=image_url,
-                price_usd=price_usd,
-                shipping_cost=shipping_cost,
-                total_price=total_price,
+                **kwargs,
                 resolution_attempted=False,
             )
         )
         self.session.commit()
+
+        return True
