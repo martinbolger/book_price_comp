@@ -1,31 +1,22 @@
 [project]
-name = "book_scraper"
+name = "book_arbitrage"
 version = "0.1.0"
 description = "Scrapes book sales data to identify arbitrage opportunities"
 readme = "README.md"
 requires-python = ">=3.11"
 
-dependencies = [
-    "beautifulsoup4>=4.14.3",
-    "lxml>=6.0.2",
-    "pandas>=3.0.2",
-    "pillow>=12.2.0",
-    "playwright>=1.58.0",
-    "playwright-stealth>=2.0.3",
-    "psycopg2-binary",
-    "requests>=2.33.0",
-    "sqlalchemy>=2.0.49",
-]
+dependencies = ["database", "scraper", "labeler"]
+
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0.3", 
-    "alembic>=1.18.4"
+    "pytest>=9.0.3",
 ]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/book_scraper"]
+[tool.uv.sources]
+database = { workspace = true }
+scraper = { workspace = true }
+labeler = { workspace = true }
 
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+[tool.uv.workspace]
+members = ["packages/*"]
