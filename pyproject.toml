@@ -11,6 +11,7 @@ dependencies = ["database", "scraper", "labeler"]
 [project.optional-dependencies]
 dev = [
     "pytest>=9.0.3",
+    "debugpy>=1.6.0",
 ]
 
 [tool.uv.sources]

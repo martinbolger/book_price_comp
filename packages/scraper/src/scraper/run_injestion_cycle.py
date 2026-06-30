@@ -1,6 +1,5 @@
 import asyncio
 import os
-import boto3
 import tempfile
 from datetime import datetime
 import random
@@ -20,8 +19,6 @@ from scraper.seller_info import EbaySellerInfo
 
 logging.basicConfig(filename="scraper.log", level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-s3_client = boto3.client("s3")
 
 
 class Scraper:
@@ -58,17 +55,7 @@ class Scraper:
 
         # This is the recommended usage. All pages created will have stealth applied:
         async with Stealth().use_async(async_playwright()) as p:
-            browser = await p.chromium.launch(
-                # headless=False
-                headless=True,
-                args=[
-                    "--no-sandbox",
-                    "--disable-setuid-sandbox",
-                    "--disable-dev-shm-usage",
-                    "--disable-gpu",
-                    "--no-zygote",
-                ],
-            )
+            browser = await p.chromium.launch(headless=False)
 
             page = await browser.new_page()
 
@@ -91,10 +78,10 @@ class Scraper:
                             f"Received HTML for page {current_page} of seller {seller}."
                         )
                         # Save a screenshot of the page
-                        await self.save_page_screenshot(
-                            page=page,
-                            step_name=f"{seller.seller_id}_page{current_page}",
-                        )
+                        # await self.save_page_screenshot(
+                        #     page=page,
+                        #     step_name=f"{seller.seller_id}_page{current_page}",
+                        # )
 
                     except Exception as e:
                         # If this fails, log the error and break out of the pagination loop for this seller
@@ -148,21 +135,10 @@ class Scraper:
 
             await browser.close()
             logger.debug(
-                f"Completed scrape of the following sellers: {", ".join([s.seller_id for s in sellers])}."
+                f"Completed scrape of the following sellers: {', '.join([s.seller_id for s in sellers])}."
             )
 
-    @staticmethod
-    async def human_mouse_move(page):
-        # Move the mouse to a few random points on the screen
-        for _ in range(3):
-            x = random.randint(100, 700)
-            y = random.randint(100, 700)
-            await page.mouse.move(x, y, steps=random.randint(10, 20))
-
-    async def get_page_html(self, page: Page, url: str, wait_time: int = 8000) -> str:
-        # page.route("**/*", self.route_intercept)
-
-        # If we are on about:blank, Akamai might be suspicious.
+    async def get_page_html(self, page: Page, url: str) -> str:
         # Start at a neutral site first.
         if page.url == "about:blank":
             landing_page = "https://www.ebay.com"
@@ -170,32 +146,15 @@ class Scraper:
                 f"Detected initial launch; opening landing page: {landing_page}."
             )
             await page.goto(landing_page, wait_until="domcontentloaded")
-
-            # # --- MANUAL STEP START ---
-            # print("\n[MANUAL INTERVENTION REQUIRED]")
-            # print(f"Please solve any CAPTCHAs or navigate to the landing page.")
-            # print("Press ENTER in this terminal when you are ready to continue...")
-
-            # # Use run_in_executor so the terminal input doesn't freeze the async loop
-            # await asyncio.get_event_loop().run_in_executor(None, input)
-            # # --- MANUAL STEP END ---
-
-        async with page.expect_navigation(wait_until="domcontentloaded", timeout=60000):
-            # await self.human_mouse_move(page)  # Move the mouse to mimic human behavior
-            # Trigger the click via JS with an internal delay
-            await page.evaluate(f"""
-                setTimeout(() => {{
-                    const a = document.createElement('a');
-                    a.href = '{url}';
-                    document.body.appendChild(a);
-                    a.click();
-                }}, {random.randint(500, 1500)}); 
-            """)
-
-        # Wait for the content to settle
-        logger.debug("Awaiting page load...")
-        await page.wait_for_timeout(wait_time)
-        logger.debug("Awaiting page content...")
+        
+        await page.goto(url)
+        try:
+            # 'li.s-card' is the indicator that you are on the actual results page
+            await page.wait_for_selector("li.s-card", state="visible", timeout=30000)
+        except Exception:
+            logger.error("Timed out waiting for search results. Possibly blocked by security check.")
+            raise
+            
         return await page.content()
 
     async def save_page_screenshot(self, page: Page, step_name: str):
@@ -310,19 +269,19 @@ def _configure_screenshot_storage(self):
 if __name__ == "__main__":
 
     seller_names = [
-        # "jnts0710",
-        # "beyond_llc_jp01",
-        # "ninja_japan_shop",
-        # "yoshihiroshop",
-        # "nkkt10-26",
-        # "japan-nihonbashi",
+        "jnts0710",
+        "beyond_llc_jp01",
+        "ninja_japan_shop",
+        "yoshihiroshop",
+        "nkkt10-26",
+        "japan-nihonbashi",
         "romando",
-        # "moyashi-japan-books",
-        # "bookoff.usa.inc",
-        # "nature6782",
-        # "good_japan",
-        # "takarazukadesigns",
-        # "miccha_485"
+        "moyashi-japan-books",
+        "bookoff.usa.inc",
+        "nature6782",
+        "good_japan",
+        "takarazukadesigns",
+        "miccha_485"
     ]
     # Example usage
     sellers = [EbaySellerInfo(seller_id=seller_name) for seller_name in seller_names]

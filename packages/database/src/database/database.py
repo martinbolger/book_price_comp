@@ -1,7 +1,11 @@
 import os
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
 
-# 1. Use an Environment Variable, but provide a default for local dev
+# Load environment variables from .env
+load_dotenv()
+
+# Use an Environment Variable, but provide a default for local dev
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////var/task/debug/book_scraper.db")
 
 

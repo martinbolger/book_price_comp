@@ -14,7 +14,7 @@ services:
   scraper:
     build: 
       context: .
-      target: dev_container
+      target: dev
     volumes:
       - .:/app
     working_dir: /app
@@ -24,23 +24,12 @@ services:
       - db
     # Keeps the container running for you to attach via VS Code
     tty: true 
-    # Required for Docker-in-Docker features to initialize
     privileged: true
-    command: sleep infinity
-
-  floci:
-    container_name: floci_emulator
-    image: floci/floci:latest  # Floci is compatible with LocalStack images
     ports:
-      - "4566:4566"            # LocalStack/Floci Gateway
-      - "4510-4559:4510-4559"  # External services port range for launching lambda functions
-    environment:
-      - DEBUG=1
-      - DOCKER_HOST=unix:///var/run/docker.sock
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock"  # Allow floci to launch docker containers with the lambda functions 
+      - "5678:5678"
+    command: sleep infinity
+    # command: python -c "import debugpy; debugpy.listen(('0.0.0.0', 5678)); print('Debugger listening on 0.0.0.0:5678'); debugpy.wait_for_client()"
 
 volumes:
   book_scraper_postgres_data:
     external: true
-    # driver: local
