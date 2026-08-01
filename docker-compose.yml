@@ -7,9 +7,9 @@ services:
       POSTGRES_PASSWORD: password123
       POSTGRES_DB: book_scraper
     volumes:
-      - book_scraper_postgres_data:/var/lib/postgresql/data
+      - book_scraper_postgres_data_v2:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   scraper:
     build: 
@@ -31,5 +31,5 @@ services:
     # command: python -c "import debugpy; debugpy.listen(('0.0.0.0', 5678)); print('Debugger listening on 0.0.0.0:5678'); debugpy.wait_for_client()"
 
 volumes:
-  book_scraper_postgres_data:
-    external: true
+  book_scraper_postgres_data_v2:
+    # external: true

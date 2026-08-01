@@ -1,24 +1,8 @@
-import pytest
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
+from freezegun import freeze_time
 
-from database.manager import ManifestManager, BookManager
-from database.models import ManifestEntry, BookEntry
-from database.database import init_db, get_engine
-
-
-@pytest.fixture
-def temp_db():
-    # Initialize the database and create a session
-    engine = get_engine("sqlite:///:memory:")
-    init_db(engine)
-
-    session = sessionmaker(bind=engine)
-    session = session()
-
-    yield session
-
-    session.close()
+from database.manager import ManifestManager, BookManager, LabelManager
+from database.models import ManifestEntry, BookEntry, LabelEntry
 
 
 class TestManifestManager:
@@ -185,3 +169,46 @@ class TestBookManager:
             )
             assert book is not None
             assert book.image_file == image_file_path
+
+
+class TestLabelManager:
+    @freeze_time("2026-01-01 12:00:00")
+    def test_add_new_url(self, temp_db):
+        manager = LabelManager(temp_db)
+        image_url = "https://example.com/image.jpg"
+        model_used = "grok-4.3"
+        batch_request_id = "batch_123"
+
+        manager.add_new_url(image_url, model_used, batch_request_id)
+
+        entry = (
+            temp_db.query(LabelEntry).filter(LabelEntry.image_url == image_url).first()
+        )
+        assert entry is not None
+        assert entry.image_url == image_url
+        assert entry.model_used == model_used
+        assert entry.batch_request_id == batch_request_id
+        assert entry.created_at == datetime(2026, 1, 1, 12, 0, 0)
+        assert entry.updated_at == datetime(2026, 1, 1, 12, 0, 0)
+
+    def test_update_url_label(self, temp_db):
+        manager = LabelManager(temp_db)
+        image_url = "https://example.com/image.jpg"
+        model_used = "grok-4.3"
+        batch_request_id = "batch_123"
+        label = "Test Label"
+
+        # Add a new URL first
+        manager.add_new_url(image_url, model_used, batch_request_id)
+
+        # Update the label for the URL
+        manager.update_url_label(image_url, model_used, label)
+
+        entry = (
+            temp_db.query(LabelEntry).filter(LabelEntry.image_url == image_url).first()
+        )
+        assert entry is not None
+        assert entry.label == label
+        assert entry.status == "completed"
+
+    # TODO: Add test for update_urls_to_failed method.

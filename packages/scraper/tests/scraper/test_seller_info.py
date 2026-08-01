@@ -2,6 +2,7 @@ from scraper.seller_info import EbaySellerInfo
 
 
 def test_ebay_has_next_page():
+    """Test the has_next_page method of EbaySellerInfo."""
     seller_info = EbaySellerInfo(seller_id="test_seller")
     # Mock HTML content with a next page link
     html_content = """

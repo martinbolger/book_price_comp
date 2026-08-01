@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-from database.models import BookEntry, ManifestEntry
+from database.models import BookEntry, ManifestEntry, LabelEntry
 
 import logging
 
@@ -168,9 +168,65 @@ class BookManager:
                 listingid=listingid,
                 title=title,
                 **kwargs,
-                resolution_attempted=False,
             )
         )
         self.session.commit()
 
         return True
+
+
+class LabelManager:
+    """Manages the label entry table in the database including adding a new entry for a pending label and updating the status when a label is generated."""
+
+    def __init__(self, session: Session):
+        """
+        Initializes the LabelManager with a database session.
+
+        Parameters
+        ----------
+        session : Session
+            SQLAlchemy session for database operations.
+        """
+        self.session = session
+
+    def add_new_url(
+        self, image_url: str, model_used: str, batch_request_id: str
+    ) -> None:
+        """Adds a new image url entry to the database with a pending status."""
+        self.session.add(
+            LabelEntry(
+                image_url=image_url,
+                model_used=model_used,
+                status="pending",
+                batch_request_id=batch_request_id,
+            )
+        )
+        self.session.commit()
+
+    def update_url_label(self, image_url: str, model_used: str, label: str) -> None:
+        """Updates the label entry in the database with the generated label and marks it as completed."""
+        entry = (
+            self.session.query(LabelEntry)
+            .filter(
+                LabelEntry.image_url == image_url, LabelEntry.model_used == model_used
+            )
+            .first()
+        )
+        if entry:
+            entry.label = label
+            entry.status = "completed"
+            self.session.commit()
+
+    def update_urls_to_failed(self):
+        """Updates all pending label entries that are more than 24 hours old to failed status."""
+        expiration_time = datetime.timezone.utc.now() - timedelta(hours=24)
+        entries = (
+            self.session.query(LabelEntry)
+            .filter(
+                LabelEntry.status == "pending", LabelEntry.created_at < expiration_time
+            )
+            .all()
+        )
+        for entry in entries:
+            entry.status = "failed"
+        self.session.commit()

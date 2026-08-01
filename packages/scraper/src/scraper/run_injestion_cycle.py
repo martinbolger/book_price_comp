@@ -1,4 +1,5 @@
 import asyncio
+import time
 import os
 import tempfile
 from datetime import datetime
@@ -6,12 +7,13 @@ import random
 import logging
 from typing import Literal
 from pathlib import Path
+import re
 
 from playwright.async_api import async_playwright, Page
 from playwright_stealth import Stealth
 from sqlalchemy.orm import sessionmaker
 
-from database.database import init_db, get_engine
+from database.main import init_db, get_engine
 from database.manager import BookManager
 
 from scraper.seller_info import SellerInfo
@@ -22,6 +24,31 @@ logger = logging.getLogger(__name__)
 
 
 class Scraper:
+    @staticmethod
+    def looks_like_results_page(html: str) -> bool:
+        if not html:
+            return False
+
+        lowered = html.lower()
+        if "verify you are human" in lowered or "captcha" in lowered:
+            return False
+
+        if "srp-results" in lowered or "s-item" in lowered or "s-card" in lowered:
+            return True
+
+        return False
+
+    @staticmethod
+    def looks_like_blocked_page(html: str) -> bool:
+        if not html:
+            return False
+
+        lowered = html.lower()
+        if "verify you are human" in lowered or "captcha" in lowered:
+            return True
+
+        return False
+
     def __init__(
         self,
         run_location: Literal["local", "aws"],
@@ -57,9 +84,12 @@ class Scraper:
         async with Stealth().use_async(async_playwright()) as p:
             browser = await p.chromium.launch(headless=False)
 
-            page = await browser.new_page()
+            context = await browser.new_context(storage_state="ebay_state.json")
+            page = await context.new_page()
 
             webdriver_status = await page.evaluate("navigator.webdriver")
+
+            await self.warmup_session(page)
 
             for seller in sellers:
                 # Set the current URL to the seller's base URL and start pagination loop
@@ -77,6 +107,7 @@ class Scraper:
                         logger.debug(
                             f"Received HTML for page {current_page} of seller {seller}."
                         )
+
                         # Save a screenshot of the page
                         # await self.save_page_screenshot(
                         #     page=page,
@@ -129,7 +160,10 @@ class Scraper:
                             f"Found {added_count} new items on page {current_page} for seller {seller.seller_id}. Fetching next page..."
                         )
 
-                    # Update current page
+                    # Before navigating to next_page_url
+                    delay = random.uniform(3.5, 7.0)
+                    logger.debug(f"Sleeping {delay:.2f}s to mimic human browsing...")
+                    await page.wait_for_timeout(int(delay * 1000))
                     current_url = seller.get_next_page_url(current_page)
                     current_page += 1
 
@@ -138,24 +172,55 @@ class Scraper:
                 f"Completed scrape of the following sellers: {', '.join([s.seller_id for s in sellers])}."
             )
 
+    async def warmup_session(self, page: Page):
+        logger.debug("Warming up session on eBay homepage...")
+        await page.goto(
+            "https://www.ebay.com", wait_until="domcontentloaded", timeout=60000
+        )
+        # Give JS tracking scripts time to execute and store session cookies
+        await page.wait_for_timeout(random.randint(2500, 4500))
+
     async def get_page_html(self, page: Page, url: str) -> str:
-        # Start at a neutral site first.
-        if page.url == "about:blank":
-            landing_page = "https://www.ebay.com"
-            logger.debug(
-                f"Detected initial launch; opening landing page: {landing_page}."
-            )
-            await page.goto(landing_page, wait_until="domcontentloaded")
-        
-        await page.goto(url)
-        try:
-            # 'li.s-card' is the indicator that you are on the actual results page
-            await page.wait_for_selector("li.s-card", state="visible", timeout=30000)
-        except Exception:
-            logger.error("Timed out waiting for search results. Possibly blocked by security check.")
-            raise
-            
-        return await page.content()
+        logger.debug(f"Waiting for search results to load for URL: {url}...")
+
+        for attempt in range(3):
+            try:
+                # Replaced time.sleep with non-blocking asyncio.sleep
+                await asyncio.sleep(random.uniform(5.0, 10.0))
+                await page.goto(url, wait_until="domcontentloaded", timeout=60000)
+                html = await page.content()
+
+                if self.looks_like_results_page(html):
+                    return html
+
+                if self.looks_like_blocked_page(html):
+                    logger.warning(
+                        "Bot challenge detected! Please solve the CAPTCHA in the browser."
+                    )
+
+                    # Pause the script and wait for user input in the terminal
+                    input(
+                        "--> Press ENTER here in the terminal once you've solved it..."
+                    )
+
+                    # Refresh HTML after you solve the challenge
+                    html = await page.content()
+                    if self.looks_like_results_page(html):
+                        return html
+
+                await page.wait_for_timeout(2000)
+
+            except Exception as exc:
+                if attempt == 2:
+                    logger.error(
+                        "Timed out waiting for search results. Possibly blocked by security check."
+                    )
+                    raise
+                logger.warning(
+                    f"Attempt {attempt + 1} failed while loading {url}: {exc}. Retrying..."
+                )
+
+        raise RuntimeError(f"Unable to load search results for {url}")
 
     async def save_page_screenshot(self, page: Page, step_name: str):
         """
@@ -269,19 +334,19 @@ def _configure_screenshot_storage(self):
 if __name__ == "__main__":
 
     seller_names = [
-        "jnts0710",
-        "beyond_llc_jp01",
-        "ninja_japan_shop",
-        "yoshihiroshop",
-        "nkkt10-26",
-        "japan-nihonbashi",
-        "romando",
+        # "jnts0710",
+        # "beyond_llc_jp01",
+        # "ninja_japan_shop",
+        # "yoshihiroshop",
+        # "nkkt10-26",
+        # "japan-nihonbashi",
+        # "romando",
         "moyashi-japan-books",
-        "bookoff.usa.inc",
-        "nature6782",
-        "good_japan",
-        "takarazukadesigns",
-        "miccha_485"
+        # "bookoff.usa.inc",
+        # "nature6782",
+        # "good_japan",
+        # "takarazukadesigns",
+        # "miccha_485",
     ]
     # Example usage
     sellers = [EbaySellerInfo(seller_id=seller_name) for seller_name in seller_names]

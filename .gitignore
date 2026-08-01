@@ -21,3 +21,6 @@ screenshots/*
 
 # Terraform
 .terraform
+
+# Ebay login infor
+ebay_state.json

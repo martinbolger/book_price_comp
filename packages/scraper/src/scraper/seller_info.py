@@ -78,6 +78,8 @@ class EbaySellerInfo(SellerInfo):
             sold_date = sold_date.get_text(strip=True)
             # Image URL
             image_url = img_tag.get("src")
+            # Standardize image URL to a higher resolution
+            image_url = re.sub(r"s-l\d+\.webp", "s-l500.webp", image_url)
             # Price
             price_usd = price_tag.get_text(strip=True)
             # Shipping
@@ -102,6 +104,7 @@ class EbaySellerInfo(SellerInfo):
                     "listingid": listingid,
                     "title": title,
                     "magazine": "magazine" in title.lower(),
+                    "set": " set " in title.lower(),
                     "sold_date": sold_date_dt,
                     "image_url": image_url,
                     "price_usd": price_usd_float,

@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -42,3 +43,43 @@ def test_update_db_adds_book_with_correct_seller_id(temp_db):
     assert book is not None
     assert book.seller_id == "my_seller"
     session.close()
+
+
+def test_looks_like_results_page_accepts_s_item_markup():
+    html = "<html><body><ul class='srp-results'><li class='s-item'></li></ul></body></html>"
+
+    assert Scraper.looks_like_results_page(html)
+
+
+def test_looks_like_blocked_page_detects_human_verification():
+    html = "<html><body><h1>Verify you are human</h1></body></html>"
+
+    assert Scraper.looks_like_blocked_page(html)
+    assert not Scraper.looks_like_results_page(html)
+
+
+def test_wait_for_human_verification_reloads_page(monkeypatch):
+    class DummyPage:
+        def __init__(self):
+            self.reloaded = False
+
+        async def reload(self, **kwargs):
+            self.reloaded = True
+
+    page = DummyPage()
+    calls = []
+
+    async def fake_to_thread(func, *args, **kwargs):
+        calls.append((func, args, kwargs))
+        return None
+
+    monkeypatch.setattr("scraper.run_injestion_cycle.asyncio.to_thread", fake_to_thread)
+
+    async def run_test():
+        scraper = Scraper(run_location="local")
+        await scraper.wait_for_human_verification(page, "https://example.com")
+
+    asyncio.run(run_test())
+
+    assert page.reloaded is True
+    assert calls

@@ -7,7 +7,7 @@ requires-python = ">=3.11"
 
 dependencies = [
     "xai_sdk",
-    "database"
+    "database",
 ]
 
 [tool.uv.sources]
@@ -15,7 +15,8 @@ database = { workspace = true }
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0.3"
+    "pytest>=9.0.3",
+    "freezegun>=1.5.5",
 ]
 
 [build-system]
