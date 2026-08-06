@@ -190,7 +190,7 @@ class LabelManager:
         self.session = session
 
     def add_new_url(
-        self, image_url: str, model_used: str, batch_request_id: str
+        self, image_url: str, model_used: str, batch_request_id: str, batch_id: str
     ) -> None:
         """Adds a new image url entry to the database with a pending status."""
         self.session.add(
@@ -199,23 +199,46 @@ class LabelManager:
                 model_used=model_used,
                 status="pending",
                 batch_request_id=batch_request_id,
+                batch_id=batch_id,
             )
         )
         self.session.commit()
 
-    def update_url_label(self, image_url: str, model_used: str, label: str) -> None:
-        """Updates the label entry in the database with the generated label and marks it as completed."""
+    def update_url_label(
+        self, batch_request_id: str, batch_id: str, label: str | None, is_success: bool
+    ) -> None:
+        """Updates the label entry in the database with the generated label and marks it as completed or failed."""
+
+        if label is None and is_success:
+            raise ValueError(
+                "Label cannot be None when is_success is True. Provide a valid label."
+            )
         entry = (
             self.session.query(LabelEntry)
             .filter(
-                LabelEntry.image_url == image_url, LabelEntry.model_used == model_used
+                LabelEntry.batch_request_id == batch_request_id,
+                LabelEntry.batch_id == batch_id,
             )
             .first()
         )
         if entry:
             entry.label = label
-            entry.status = "completed"
+            entry.status = "completed" if is_success else "failed"
             self.session.commit()
+        else:
+            raise ValueError(
+                f"No entry found for batch_request_id: {batch_request_id}, batch_id: {batch_id}"
+            )
+
+    def get_pending_batch_ids(self) -> list[str]:
+        """Returns a list of unique batch IDs that have pending label entries."""
+        pending_batches = (
+            self.session.query(LabelEntry.batch_id)
+            .filter(LabelEntry.status == "pending")
+            .distinct()
+            .all()
+        )
+        return [batch[0] for batch in pending_batches]
 
     def update_urls_to_failed(self):
         """Updates all pending label entries that are more than 24 hours old to failed status."""

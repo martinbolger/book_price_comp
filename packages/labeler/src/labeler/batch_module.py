@@ -1,5 +1,8 @@
+from dataclasses import dataclass
+from typing import List
+
 from xai_sdk import Client
-from xai_sdk.chat import system, user, image
+from xai_sdk.chat import Optional, system, user, image
 from xai_sdk.tools import web_search
 
 from dotenv import load_dotenv
@@ -8,52 +11,160 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-class Batch:
-    def __init__(
-        self,
-        name: str,
-        system_prompt: str = None,
-        batch_size: int = 10,
-        client: Client = None,
-    ):
-        self.name = name
-        self.client = client if client is not None else Client()
-        self.batch = self.create_batch()
-        self.batch_size = batch_size
-        self.batch_id = self.batch.batch_id
-        self.system_prompt = "" if system_prompt is None else system_prompt
-        self.batch_requests = []
+@dataclass
+class BatchItemResult:
+    batch_request_id: str
+    response_text: Optional[str]
+    is_success: bool
+    error_message: Optional[str] = None
 
-    def create_batch(self) -> object:
-        """Creates a new batch with the given name using the XAI SDK."""
-        batch = self.client.batch.create(batch_name=self.name)
-        print(f"Created batch: {batch.batch_id}")
-        return batch
+
+class Label_Batch:
+    def __init__(self, client: Client = None, model: str = "grok-4.3"):
+        self.client = client if client is not None else Client()
+        self.model = model
+
+    def create_batch(self, name: str) -> str:
+        """Creates a new batch with the given name."""
+        raise NotImplementedError("This method should be implemented in a subclass.")
 
     def add_request_to_batch(
-        self, message: str, image_url: str, batch_request_id: str
-    ) -> list:
+        self,
+        message: str,
+        image_url: str,
+        batch_request_id: str,
+        system_prompt: str = None,
+    ) -> object:
+        """Adds a new request to the batch with the given message."""
+        raise NotImplementedError("This method should be implemented in a subclass.")
+
+    def run_batch(self, batch_id: str = None, batch_requests: list[object] = None):
+        """Run the labeling process for the given batch request payloads."""
+        raise NotImplementedError("This method should be implemented in a subclass.")
+
+    def get_batch_results(self, batch_id: str) -> List[BatchItemResult]:
+        """Fetches batch results and returns normalized BatchItemResult list."""
+        raise NotImplementedError("This method should be implemented in a subclass.")
+
+
+class XAI_Batch(Label_Batch):
+    def __init__(self, client: Client = None, model: str = "grok-4.3"):
+        self.client = client if client is not None else Client()
+        self.model = model
+
+    def create_batch(self, name: str) -> str:
+        """Creates a new batch with the given name using the XAI SDK."""
+        batch = self.client.batch.create(batch_name=name)
+        print(f"Created batch: {batch.batch_id}")
+        return batch.batch_id
+
+    def add_request_to_batch(
+        self,
+        message: str,
+        image_url: str,
+        batch_request_id: str,
+        system_prompt: str = None,
+    ) -> object:
         """Adds a new request to the batch with the given message."""
         chat = self.client.chat.create(
-            model="grok-4.3",
+            model=self.model,
             batch_request_id=batch_request_id,
             tools=[web_search()],
         )
-        if self.system_prompt:
-            chat.append(system(self.system_prompt))
+        if system_prompt:
+            chat.append(system(system_prompt))
         chat.append(user(message, image(image_url, detail="low")))
-        self.batch_requests.append(chat)
+        return chat
 
-    def add_images_to_batch(self, book_images: list[str]):
-        """Add images to the batch until we reach the batch size."""
-        for i, image_url in enumerate(book_images[: self.batch_size]):
-            message = f"Label the book at this URL: {image_url}"
-            self.add_request_to_batch(
-                message=message, image_url=image_url, batch_request_id=f"item_{i}"
+    def run_batch(self, batch_id: str = None, batch_requests: list[object] = None):
+        """Run the labeling process for the given batch request payloads."""
+        # Get the list of chat objects from the dictionaries in batch_request_objs.
+        self.client.batch.add(batch_id=batch_id, batch_requests=batch_requests)
+
+    def _list_batch_results(
+        self, batch_id: str, limit: int = 100, pagination_token: str = None
+    ):
+        """List the results of a batch with pagination support."""
+        # Paginate through all results
+        all_succeeded = []
+        all_failed = []
+        pagination_token = None
+        while True:
+            # Fetch a page of results (limit controls page size)
+            page = self.client.batch.list_batch_results(
+                batch_id=batch_id,
+                limit=limit,
+                pagination_token=pagination_token,
             )
 
-    def run_batch(self):
-        """Run the labeling process for the given batch request payloads."""
-        self.client.batch.add(
-            batch_id=self.batch_id, batch_requests=self.batch_requests
-        )
+            # Collect results from this page
+            all_succeeded.extend(page.succeeded)
+            all_failed.extend(page.failed)
+
+            # Check if there are more pages
+            if page.pagination_token is None:
+                break
+            pagination_token = page.pagination_token
+        return all_succeeded, all_failed
+
+    @staticmethod
+    def extract_title_from_proto(result) -> str:
+        """
+        Parses native protobuf response from xAI Batch API,
+        handling multi-turn tool executions cleanly.
+        """
+        comp_resp = getattr(result.response, "completion_response", None)
+        if not comp_resp:
+            return ""
+
+        outputs = getattr(comp_resp, "outputs", [])
+
+        # Iterate backwards through outputs to catch the final assistant answer
+        for output in reversed(outputs):
+            msg = getattr(output, "message", None)
+            if not msg:
+                continue
+
+            content = getattr(msg, "content", "")
+
+            # If finish_reason is REASON_STOP or content exists, return it
+            if content and content.strip():
+                return content.strip()
+
+        return ""
+
+    def get_batch_results(self, batch_id: str) -> List[BatchItemResult]:
+        """Fetches batch results from xAI and returns normalized BatchItemResult list."""
+        succeeded, failed = self._list_batch_results(batch_id)
+        results: List[BatchItemResult] = []
+
+        # Parse succeeded items
+        for result in succeeded:
+            rid = result.batch_request_id
+            resp = result.proto.response
+
+            if resp.HasField("completion_response"):
+                # Chat completion response
+                print(f"[{rid}] {result.response.content}")
+                print(f"  Tokens used: {result.response.usage.total_tokens}")
+
+            results.append(
+                BatchItemResult(
+                    batch_request_id=result.batch_request_id,
+                    response_text=(result.response.content),
+                    is_success=True,
+                )
+            )
+
+        # Parse failed items
+        for result in failed:
+            results.append(
+                BatchItemResult(
+                    batch_request_id=result.batch_request_id,
+                    response_text=None,
+                    is_success=False,
+                    error_message=getattr(result, "error", "Unknown batch error"),
+                )
+            )
+
+        return results

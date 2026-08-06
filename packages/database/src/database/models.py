@@ -21,8 +21,20 @@ class BookEntry(Base):
     image_url = Column(String)
     image_file = Column(String)
     title = Column(String)
-    magazine = Column(Boolean)
-    set = Column(Boolean)
+    magazine = Column(
+        Boolean,
+        doc="Indicates if the book is a magazine.",
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+    set = Column(
+        Boolean,
+        doc="Indicates if the book is part of a set.",
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
     sold_date = Column(DateTime)
     price_usd = Column(Float)
     shipping_cost = Column(Float)
@@ -36,8 +48,11 @@ class LabelEntry(Base):
     model_used = Column(
         String, doc="The model used to generate the label.", primary_key=True
     )
+    batch_id = Column(
+        String, doc="Identifier for the API batch request that the label as a part of."
+    )
     batch_request_id = Column(
-        String, doc="Identifier for the API batch request for the label."
+        String, doc="Identifier for the individual request for the label."
     )
     status = Column(
         Enum("pending", "completed", "failed", name="status_enum"),

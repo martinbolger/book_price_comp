@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from freezegun import freeze_time
+import pytest
+from sqlalchemy import and_
 
+from database.testing.conftest import temp_db
 from database.manager import ManifestManager, BookManager, LabelManager
 from database.models import ManifestEntry, BookEntry, LabelEntry
 
@@ -174,12 +177,19 @@ class TestBookManager:
 class TestLabelManager:
     @freeze_time("2026-01-01 12:00:00")
     def test_add_new_url(self, temp_db):
+        """Test adding a new URL to the labels table."""
         manager = LabelManager(temp_db)
         image_url = "https://example.com/image.jpg"
         model_used = "grok-4.3"
         batch_request_id = "batch_123"
+        batch_id = "batch_123"
 
-        manager.add_new_url(image_url, model_used, batch_request_id)
+        manager.add_new_url(
+            image_url=image_url,
+            model_used=model_used,
+            batch_request_id=batch_request_id,
+            batch_id=batch_id,
+        )
 
         entry = (
             temp_db.query(LabelEntry).filter(LabelEntry.image_url == image_url).first()
@@ -188,6 +198,8 @@ class TestLabelManager:
         assert entry.image_url == image_url
         assert entry.model_used == model_used
         assert entry.batch_request_id == batch_request_id
+        assert entry.batch_id == batch_id
+        assert entry.status == "pending"
         assert entry.created_at == datetime(2026, 1, 1, 12, 0, 0)
         assert entry.updated_at == datetime(2026, 1, 1, 12, 0, 0)
 
@@ -197,18 +209,173 @@ class TestLabelManager:
         model_used = "grok-4.3"
         batch_request_id = "batch_123"
         label = "Test Label"
+        batch_id = "batch_123"
 
         # Add a new URL first
-        manager.add_new_url(image_url, model_used, batch_request_id)
+        manager.add_new_url(
+            image_url=image_url,
+            model_used=model_used,
+            batch_request_id=batch_request_id,
+            batch_id=batch_id,
+        )
 
         # Update the label for the URL
-        manager.update_url_label(image_url, model_used, label)
+        manager.update_url_label(
+            is_success=True,
+            batch_request_id=batch_request_id,
+            batch_id=batch_id,
+            label=label,
+        )
 
+        # Assert that the label entry was added
         entry = (
-            temp_db.query(LabelEntry).filter(LabelEntry.image_url == image_url).first()
+            temp_db.query(LabelEntry)
+            .filter(
+                and_(
+                    LabelEntry.batch_id == batch_id,
+                    LabelEntry.batch_request_id == batch_request_id,
+                )
+            )
+            .first()
         )
         assert entry is not None
         assert entry.label == label
         assert entry.status == "completed"
+        # Check that updated_at was set correctly.
+        assert entry.updated_at > entry.created_at
+
+    def test_update_urls_to_failed(self, temp_db):
+        manager = LabelManager(temp_db)
+        image_url = "https://example.com/image.jpg"
+        model_used = "grok-4.3"
+        batch_request_id = "batch_123"
+        batch_id = "batch_123"
+
+        # Add a new URL first
+        manager.add_new_url(
+            image_url=image_url,
+            model_used=model_used,
+            batch_request_id=batch_request_id,
+            batch_id=batch_id,
+        )
+
+        # Update the label for the URL
+        manager.update_url_label(
+            is_success=False,
+            batch_request_id=batch_request_id,
+            batch_id=batch_id,
+            label=None,
+        )
+
+        # Assert that the label entry was added
+        entry = (
+            temp_db.query(LabelEntry)
+            .filter(
+                and_(
+                    LabelEntry.batch_id == batch_id,
+                    LabelEntry.batch_request_id == batch_request_id,
+                )
+            )
+            .first()
+        )
+        assert entry is not None
+        assert entry.label == None
+        assert entry.status == "failed"
+        # Check that updated_at was set correctly.
+        assert entry.updated_at > entry.created_at
+
+    def test_update_urls_fail_non_existent_batch_id(self, temp_db):
+        manager = LabelManager(temp_db)
+        batch_request_id = "batch_123"
+        batch_id = "batch_123"
+
+        # Update the label for the URL
+        with pytest.raises(
+            ValueError, match="No entry found for batch_request_id"
+        ) as excinfo:
+            manager.update_url_label(
+                is_success=False,
+                batch_request_id=batch_request_id,
+                batch_id=batch_id,
+                label=None,
+            )
+
+    def test_update_urls_fail_no_label(self, temp_db):
+        manager = LabelManager(temp_db)
+        image_url = "https://example.com/image.jpg"
+        model_used = "grok-4.3"
+        batch_request_id = "batch_123"
+        batch_id = "batch_123"
+
+        # Add a new URL first
+        manager.add_new_url(
+            image_url=image_url,
+            model_used=model_used,
+            batch_request_id=batch_request_id,
+            batch_id=batch_id,
+        )
+
+        # Update the label for the URL
+        with pytest.raises(ValueError, match="Label cannot be None") as excinfo:
+            manager.update_url_label(
+                is_success=True,
+                batch_request_id=batch_request_id,
+                batch_id=batch_id,
+                label=None,
+            )
+
+    def test_get_pending_batch_ids(self, temp_db):
+        manager = LabelManager(temp_db)
+        # Add multiple entries with different batch IDs
+        manager.add_new_url(
+            image_url="https://example.com/image1.jpg",
+            model_used="grok-4.3",
+            batch_request_id="request_1",
+            batch_id="batch_1",
+        )
+        manager.add_new_url(
+            image_url="https://example.com/image2.jpg",
+            model_used="grok-4.3",
+            batch_request_id="request_2",
+            batch_id="batch_2",
+        )
+        manager.add_new_url(
+            image_url="https://example.com/image3.jpg",
+            model_used="grok-4.3",
+            batch_request_id="request_3",
+            batch_id="batch_1",  # Same batch ID as first entry
+        )
+        manager.add_new_url(
+            image_url="https://example.com/image4.jpg",
+            model_used="grok-4.3",
+            batch_request_id="request_1",
+            batch_id="batch_3",  # Same batch ID as first entry
+        )
+
+        # Update one entry to completed from batch 1.
+        # Batch 1 should still be returned because there is still a pending request.
+        manager.update_url_label(
+            is_success=True,
+            batch_request_id="request_1",
+            batch_id="batch_1",
+            label="Label 1",
+        )
+
+        # Update one entry to completed from batch 3.
+        # Batch 3 should not be returned because there are no pending requests.
+        manager.update_url_label(
+            is_success=True,
+            batch_request_id="request_1",
+            batch_id="batch_3",
+            label="Label 1",
+        )
+
+        # Get pending batch IDs
+        pending_batch_ids = manager.get_pending_batch_ids()
+
+        # Assert that only the pending batch IDs are returned
+        assert "batch_1" in pending_batch_ids
+        assert "batch_2" in pending_batch_ids
+        assert "batch_3" not in pending_batch_ids
 
     # TODO: Add test for update_urls_to_failed method.

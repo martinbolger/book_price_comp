@@ -685,19 +685,19 @@ version = "0.1.0"
 source = { editable = "packages/labeler" }
 dependencies = [
     { name = "database" },
-    { name = "freezegun" },
     { name = "xai-sdk" },
 ]
 
 [package.optional-dependencies]
 dev = [
+    { name = "freezegun" },
     { name = "pytest" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "database", editable = "packages/database" },
-    { name = "freezegun", specifier = ">=1.5.5" },
+    { name = "freezegun", marker = "extra == 'dev'", specifier = ">=1.5.5" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
     { name = "xai-sdk" },
 ]
