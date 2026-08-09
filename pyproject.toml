@@ -1,16 +1,23 @@
 [project]
-name = "book-scraper"
+name = "book_arbitrage"
 version = "0.1.0"
-description = "Add your description here"
+description = "Scrapes book sales data to identify arbitrage opportunities"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-    "beautifulsoup4>=4.14.3",
-    "easyocr>=1.7.2",
-    "google-genai>=1.69.0",
-    "lxml>=6.0.2",
-    "pandas>=3.0.2",
-    "playwright>=1.58.0",
-    "requests>=2.33.0",
-    "short-url>=1.2.2",
+
+dependencies = ["database", "scraper", "labeler"]
+
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0.3",
+    "debugpy>=1.6.0",
 ]
+
+[tool.uv.sources]
+database = { workspace = true }
+scraper = { workspace = true }
+labeler = { workspace = true }
+
+[tool.uv.workspace]
+members = ["packages/*"]

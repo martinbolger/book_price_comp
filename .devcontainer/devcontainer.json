@@ -1,0 +1,14 @@
+{
+    "name": "Book Scraper Dev Environment",
+    "dockerComposeFile": "../docker-compose.yml",
+    "service": "scraper",
+    "workspaceFolder": "/app",
+    "customizations": {
+        "vscode": {
+            "extensions": ["ms-python.python", "ckolkman.vscode-postgres", "tamasfe.even-better-toml"]
+        }
+    },
+    "remoteUser": "root",
+    "containerUser": "root",
+    "postCreateCommand": ""
+}

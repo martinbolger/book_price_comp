@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+
+# Project files
+data/
+*.db
+*.html
+*.webp
+
+# Screenshots
+screenshots/*
+
+# Terraform
+.terraform
+
+# Ebay login infor
+ebay_state.json
