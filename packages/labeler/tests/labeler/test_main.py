@@ -53,7 +53,6 @@ def test_database_locks_correctly(temp_db, mock_client):
     # Act
     summary = main(
         seller_id="test_seller",
-        model_used="test_model",
         batch_size=2,
         client=mock_client,
         label_manager=label_manager,
@@ -84,7 +83,6 @@ def test_database_locks_correctly(temp_db, mock_client):
     # Act
     summary = main(
         seller_id="test_seller",
-        model_used="test_model",
         batch_size=2,
         client=mock_client,
         label_manager=label_manager,

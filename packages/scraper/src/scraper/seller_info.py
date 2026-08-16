@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 from dataclasses import dataclass
 import re
 import pandas as pd
-import time
 
 
 @dataclass
