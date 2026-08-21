@@ -5,12 +5,22 @@ description = "Scrapes book sales data to identify arbitrage opportunities"
 readme = "README.md"
 requires-python = ">=3.11"
 
-dependencies = ["database", "scraper", "labeler"]
+dependencies = [
+    "database",
+    "scraper",
+    "labeler",
+    "dbt-postgres>=1.11.0",
+    "dagster",
+    "dagster-webserver",
+    "dagster-dbt"
+]
 
 
 [project.optional-dependencies]
 dev = [
     "pytest>=9.0.3",
+    "sqlfluff>=4.3.0",
+    "sqlfluff-templater-dbt"
 ]
 
 [tool.uv.sources]
