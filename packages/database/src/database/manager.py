@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-from database.models import BookEntry, ManifestEntry, LabelEntry
+from database.models import BookEntry, ManifestEntry, LabelEntry, RawEbayListing
 
 import logging
 
@@ -253,3 +253,47 @@ class LabelManager:
         for entry in entries:
             entry.status = "failed"
         self.session.commit()
+
+
+class RawEbayListingManager:
+    """Manages the raw eBay listing entries in the database, including adding new listings and updating existing ones."""
+
+    def __init__(self, session: Session):
+        """
+        Initializes the RawEbayListing with a database session.
+
+        Parameters
+        ----------
+        session : Session
+            SQLAlchemy session for database operations.
+        """
+        self.session = session
+
+    def add_listing(self, listingid: str, **kwargs) -> bool:
+        """
+        Adds a listing entry to the database.
+
+        Returns
+        -------
+        bool
+            True if the listing was added, False if it already exists.
+        """
+
+        entry = (
+            self.session.query(RawEbayListing)
+            .filter(RawEbayListing.listingid == listingid)
+            .first()
+        )
+        if entry:
+            logger.info(f"Listing already exists in database: {listingid}")
+            return False
+
+        self.session.add(
+            RawEbayListing(
+                listingid=listingid,
+                **kwargs,
+            )
+        )
+        self.session.commit()
+
+        return True

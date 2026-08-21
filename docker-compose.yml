@@ -22,13 +22,11 @@ services:
       - DATABASE_URL=postgresql://mbolger:password123@db:5432/book_scraper
     depends_on:
       - db
-    # Keeps the container running for you to attach via VS Code
     tty: true 
     privileged: true
     ports:
       - "5678:5678"
     command: sleep infinity
-    # command: python -c "import debugpy; debugpy.listen(('0.0.0.0', 5678)); print('Debugger listening on 0.0.0.0:5678'); debugpy.wait_for_client()"
 
 volumes:
   book_scraper_postgres_data_v2:

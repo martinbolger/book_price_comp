@@ -1,0 +1,8 @@
+version: 2
+
+sources:
+  - name: raw
+    # TODO: Change schema to raw later
+    schema: public
+    tables:
+      - name: raw_ebay_listings
