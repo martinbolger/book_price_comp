@@ -48,29 +48,25 @@ class TestBookLabelingService:
 
         # Set up
         label_manager = LabelManager(temp_db)
-        mock_client.get_batch_results.return_value = (
-            [
-                # Simulate successful results
-                BatchItemResult(
-                    batch_request_id="item_0",
-                    response_text="Title 1",
-                    is_success=True,
-                ),
-                BatchItemResult(
-                    batch_request_id="item_1",
-                    response_text="Title 2",
-                    is_success=True,
-                ),
-            ],
-            [
-                # Simulate failed results
-                BatchItemResult(
-                    batch_request_id="item_2",
-                    response_text="Title 3",
-                    is_success=False,
-                ),
-            ],
-        )
+        mock_client.get_batch_results.return_value = [
+            # Simulate successful results
+            BatchItemResult(
+                batch_request_id="item_0",
+                response_text="Title 1",
+                is_success=True,
+            ),
+            BatchItemResult(
+                batch_request_id="item_1",
+                response_text="Title 2",
+                is_success=True,
+            ),
+            # Simulate failed results
+            BatchItemResult(
+                batch_request_id="item_2",
+                response_text="Title 3",
+                is_success=False,
+            ),
+        ]
         service = BookLabelingService(client=mock_client, label_manager=label_manager)
 
         # Create labels in the database to simulate pending entries

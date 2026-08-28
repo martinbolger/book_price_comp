@@ -1,0 +1,10 @@
+[sqlfluff]
+# Set your specific data warehouse dialect (e.g., snowflake, bigquery, postgres, etc.)
+dialect = postgres
+templater = dbt
+
+[sqlfluff:templater:dbt]
+# Points SQLFluff to your dbt project file
+project_dir = .
+# If your profiles.yml is not in the default (~/.dbt/) directory, specify it here
+# profiles_dir = ~/.dbt/

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Enum, String, DateTime, Boolean, Float, Integer
+from sqlalchemy import Column, Enum, String, DateTime, Boolean, Float, JSON, func
 from sqlalchemy.orm import DeclarativeBase
 from datetime import datetime, timezone
 
@@ -13,6 +13,33 @@ class ManifestEntry(Base):
     url = Column(String)
     # Use a lambda function to ensure the timestamp is generated at runtime, not import time.
     last_read_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class RawEbayListing(Base):
+    __tablename__ = "raw_ebay_listings"
+
+    seller_id = Column(String, nullable=False)
+    listingid = Column(String, primary_key=True)
+    raw_title = Column(String, nullable=True)
+    raw_price = Column(String, nullable=True)
+    raw_sold_date = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)
+    raw_attributes = Column(JSON, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class RawBookoffListing(Base):
+    __tablename__ = "raw_bookoff_listings"
+
+    search_term = Column(String, nullable=False)
+    raw_item_id = Column(String, primary_key=True)
+    raw_rel_url = Column(String, nullable=True)
+    raw_title = Column(String, nullable=True)
+    raw_author = Column(String, nullable=True)
+    raw_price = Column(String, nullable=True)
+    raw_date = Column(String, nullable=True)
+    raw_item_genre = Column(String, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class BookEntry(Base):

@@ -1,13 +1,10 @@
 import asyncio
-import time
 import os
 import tempfile
-from datetime import datetime
 import random
 import logging
 from typing import Literal
 from pathlib import Path
-import re
 
 from playwright.async_api import async_playwright, Page
 from playwright_stealth import Stealth
@@ -107,12 +104,6 @@ class Scraper:
                         logger.debug(
                             f"Received HTML for page {current_page} of seller {seller}."
                         )
-
-                        # Save a screenshot of the page
-                        # await self.save_page_screenshot(
-                        #     page=page,
-                        #     step_name=f"{seller.seller_id}_page{current_page}",
-                        # )
 
                     except Exception as e:
                         # If this fails, log the error and break out of the pagination loop for this seller
@@ -222,41 +213,6 @@ class Scraper:
 
         raise RuntimeError(f"Unable to load search results for {url}")
 
-    async def save_page_screenshot(self, page: Page, step_name: str):
-        """
-        Save a screenshot of the page for debugging when running in headless mode.
-
-        Params
-        ------
-        page:
-            Playwright page object.
-        step_name:
-            Name of the step in the scraping process. This can include
-            the name of the seller and page.
-        """
-        # Create path to local location where screenshot can be saved
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        # Create the path to the screenshot file. Make sure
-        # the directory exists first.
-        if not self.screenshot_path.exists():
-            self.screenshot_path.mkdir(parents=True)
-        local_path = self.screenshot_path / f"{step_name}_{timestamp}.png"
-
-        # 1. Take the screenshot locally
-        await page.screenshot(path=local_path, full_page=False)
-
-        # If we are running on AWS, upload to S3 bucket
-        if self.run_location == "aws":
-            s3_key = f"screenshots/{timestamp}_{step_name}.png"
-            s3_client.upload_file(local_path, self.screenshot_bucket, s3_key)
-            logger.debug(
-                f"Screenshot saved to S3: s3://{self.screenshot_bucket}/{s3_key}"
-            )
-
-            # 3. Clean up the local path to keep Lambda memory lean
-            os.remove(local_path)
-
 
 def update_db(books: list[dict]) -> int:
     """
@@ -311,24 +267,6 @@ async def start_scraping(event):
 def handler(event, context):
     """This is the entry point Lambda looks for"""
     return asyncio.run(start_scraping(event))
-
-
-def _configure_screenshot_storage(self):
-    """Sets up the attributes for the location for storing screenshots"""
-    if self.run_location == "aws":
-        self.screenshot_bucket = os.environ["SCREENSHOT_BUCKET"]
-        self.screenshot_path = "/tmp"
-    elif self.run_location == "local":
-
-        # Use environment variable to determine location to store
-        # screenshots if it exists
-        screenshot_path = os.environ.get("LOCAL_SCREENSHOT_PATH")
-
-        if screenshot_path:
-            # If the env var was set, keep the screenshots so
-            # that they can be used for debugging.
-            self.screenshot_path = Path(screenshot_path)
-            self.clear_screenshots = False
 
 
 if __name__ == "__main__":
